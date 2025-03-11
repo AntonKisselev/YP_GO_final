@@ -1,6 +1,7 @@
 package task
 
 import (
+	"AntonKisselev/YP_GO_final/db"
 	"errors"
 	"regexp"
 	"slices"
@@ -10,10 +11,58 @@ import (
 )
 
 type Task struct {
-	Repeat string
+	Repeat  string `json:"repeat"`
+	Date    string `json:"date"`
+	Title   string `json:"title"`
+	Comment string `json:"comment,omitempty"`
+	Id      int64  `json:"id"`
 }
 
-func (t Task) NextDate(now time.Time, date string) (string, error) {
+func (t *Task) Save() error {
+	if t.Title == "" {
+		return errors.New("не указан заголовок")
+	}
+	if t.Date == "" {
+		t.Date = time.Now().Format("20060102")
+	}
+	_, err := time.Parse("20060102", t.Date)
+	if err != nil {
+		return errors.New("Формат даты неверный")
+	}
+	if t.Date < time.Now().Format("20060102") {
+		if t.Repeat == "" {
+			t.Date = time.Now().Format("20060102")
+		} else {
+			t.Date, err = t.NextDate(time.Now())
+			if err != nil {
+				return err
+			}
+		}
+	}
+	_, err = t.NextDate(time.Now())
+	if err != nil {
+		return err
+	}
+
+	dbSql, err := db.GetDbConnection()
+	if err != nil {
+		return err
+	}
+	if t.Id == 0 {
+		res, err := dbSql.Exec("INSERT INTO scheduler (title, date, comment, repeat) VALUES (?, ?, ?, ?)", t.Title, t.Date, t.Comment, t.Repeat)
+		if err != nil {
+			return err
+		}
+		t.Id, err = res.LastInsertId()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t Task) NextDate(now time.Time) (string, error) {
+	date := t.Date
 	re := regexp.MustCompile("^[0-9]{8}$")
 	resBool := re.MatchString(date)
 	if !resBool {
