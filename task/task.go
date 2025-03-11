@@ -2,6 +2,7 @@ package task
 
 import (
 	"AntonKisselev/YP_GO_final/db"
+	"database/sql"
 	"errors"
 	"regexp"
 	"slices"
@@ -15,7 +16,7 @@ type Task struct {
 	Date    string `json:"date"`
 	Title   string `json:"title"`
 	Comment string `json:"comment,omitempty"`
-	Id      int64  `json:"id"`
+	Id      int64  `json:"id,string"`
 }
 
 func (t *Task) Save() error {
@@ -221,4 +222,36 @@ func (t Task) NextDate(now time.Time) (string, error) {
 	}
 
 	return "", errors.New("unsupported repeat")
+}
+
+func GetAll(search string) ([]Task, error) {
+	dbSql, err := db.GetDbConnection()
+	if err != nil {
+		return nil, err
+	}
+	var rows *sql.Rows
+	if search == "" {
+		rows, err = dbSql.Query("SELECT id, title, date, comment, repeat FROM scheduler ORDER BY date ASC LIMIT 50")
+	} else {
+		searchDate, err := time.Parse("02.01.2006", search)
+		if err != nil {
+			rows, err = dbSql.Query("SELECT id, title, date, comment, repeat FROM scheduler WHERE title LIKE ? OR comment LIKE ? ORDER BY date ASC LIMIT 50", "%"+search+"%", "%"+search+"%")
+		} else {
+			rows, err = dbSql.Query("SELECT id, title, date, comment, repeat FROM scheduler WHERE date = ? ORDER BY date ASC LIMIT 50", searchDate.Format("20060102"))
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	tasks := make([]Task, 0)
+	for rows.Next() {
+		task := Task{}
+		err = rows.Scan(&task.Id, &task.Title, &task.Date, &task.Comment, &task.Repeat)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, nil
 }
