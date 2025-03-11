@@ -53,12 +53,16 @@ func handlerApiTask(w http.ResponseWriter, req *http.Request) {
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
 		}
 
 		task := task.Task{}
 		err = json.Unmarshal(body, &task)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
 		}
 
 		errSave := task.Save()
@@ -76,6 +80,7 @@ func handlerApiTask(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			w.Write(errStr)
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
 		} else {
 			idStr, err := json.Marshal(struct {
 				ID int64 `json:"id"`
@@ -88,8 +93,11 @@ func handlerApiTask(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			w.Write(idStr)
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
 		}
 	}
+	w.WriteHeader(http.StatusBadRequest)
+	w.Write([]byte("error: invalid method"))
 }
 func handlerApiGetTasks(w http.ResponseWriter, req *http.Request) {
 	if req.Method == "GET" {
