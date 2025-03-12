@@ -197,6 +197,80 @@ func handlerApiTask(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	}
+	if req.Method == "DELETE" {
+		idS := req.URL.Query().Get("id")
+		if idS == "" {
+			errStr, err := json.Marshal(struct {
+				Error string `json:"error"`
+			}{
+				Error: "Не указан идентификатор id",
+			})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write(errStr)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
+		}
+		id, err := strconv.Atoi(idS)
+		if err != nil {
+			errStr, err := json.Marshal(struct {
+				Error string `json:"error"`
+			}{
+				Error: err.Error(),
+			})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write(errStr)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
+		}
+		task, errGet := task.GetById(id)
+		if errGet != nil {
+			errStr, err := json.Marshal(struct {
+				Error string `json:"error"`
+			}{
+				Error: errGet.Error(),
+			})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write(errStr)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
+		}
+		errDelete := task.Delete()
+		if errDelete != nil {
+			errStr, err := json.Marshal(struct {
+				Error string `json:"error"`
+			}{
+				Error: errDelete.Error(),
+			})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write(errStr)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("{}"))
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		return
+	}
 	w.WriteHeader(http.StatusBadRequest)
 	w.Write([]byte("error: invalid method"))
 	return
@@ -237,6 +311,84 @@ func handlerApiGetTasks(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusBadRequest)
 	w.Write([]byte("error: invalid method"))
 }
+func handlerTaskDone(w http.ResponseWriter, req *http.Request) {
+	if req.Method == "POST" {
+		id := req.URL.Query().Get("id")
+		if id == "" {
+			errStr, err := json.Marshal(struct {
+				Error string `json:"error"`
+			}{
+				Error: "не передан id",
+			})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write(errStr)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
+		}
+		idInt, err := strconv.Atoi(id)
+		if err != nil {
+			errStr, err := json.Marshal(struct {
+				Error string `json:"error"`
+			}{
+				Error: "передан неверный id",
+			})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write(errStr)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
+		}
+		task, err := task.GetById(idInt)
+		if err != nil {
+			errStr, err := json.Marshal(struct {
+				Error string `json:"error"`
+			}{
+				Error: err.Error(),
+			})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write(errStr)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
+		}
+		err = task.Done()
+		if err != nil {
+			errStr, err := json.Marshal(struct {
+				Error string `json:"error"`
+			}{
+				Error: err.Error(),
+			})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write(errStr)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("{}"))
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		return
+	}
+	w.WriteHeader(http.StatusBadRequest)
+	w.Write([]byte("error: invalid method"))
+}
 
 func main() {
 	err := db.CheckDb()
@@ -254,6 +406,7 @@ func main() {
 	http.HandleFunc("/api/nextdate", handlerApiNextDate)
 	http.HandleFunc("/api/task", handlerApiTask)
 	http.HandleFunc("/api/tasks", handlerApiGetTasks)
+	http.HandleFunc("/api/task/done", handlerTaskDone)
 	log.Println("http server started on :" + strconv.Itoa(port))
 	err = http.ListenAndServe(":"+strconv.Itoa(port), nil)
 	if err != nil {

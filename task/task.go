@@ -47,6 +47,21 @@ func (t *Task) Validate() error {
 	return nil
 }
 
+func (t *Task) Delete() error {
+	dbSql, err := db.GetDbConnection()
+	if err != nil {
+		return err
+	}
+	if t.Id > 0 {
+		_, err := dbSql.Exec("DELETE FROM scheduler WHERE id = ? ", t.Id)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	return nil
+}
+
 func (t *Task) Save() error {
 	err := t.Validate()
 	if err != nil {
@@ -91,6 +106,29 @@ func (t *Task) Update() error {
 		}
 		if ra == 0 {
 			return errors.New("no rows affected")
+		}
+	}
+	return nil
+}
+
+func (t *Task) Done() error {
+	dbSql, err := db.GetDbConnection()
+	if err != nil {
+		return err
+	}
+	if t.Repeat == "" {
+		_, err = dbSql.Exec("DELETE FROM scheduler WHERE id = ?", t.Id)
+		if err != nil {
+			return err
+		}
+	} else {
+		nextDate, err := t.NextDate(time.Now())
+		if err != nil {
+			return err
+		}
+		_, err = dbSql.Exec("UPDATE scheduler SET date = ? WHERE id = ?", nextDate, t.Id)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
