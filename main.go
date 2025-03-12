@@ -5,6 +5,7 @@ import (
 	"AntonKisselev/YP_GO_final/task"
 	"AntonKisselev/YP_GO_final/tests"
 	"encoding/json"
+	"github.com/joho/godotenv"
 	"io"
 	"log"
 	_ "modernc.org/sqlite"
@@ -391,7 +392,13 @@ func handlerTaskDone(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	err := db.CheckDb()
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("err loading: %v", err)
+		return
+	}
+
+	err = db.CheckDb()
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -403,10 +410,11 @@ func main() {
 		port = tests.Port
 	}
 	http.Handle("/", http.FileServer(http.Dir(webDir)))
-	http.HandleFunc("/api/nextdate", handlerApiNextDate)
-	http.HandleFunc("/api/task", handlerApiTask)
-	http.HandleFunc("/api/tasks", handlerApiGetTasks)
-	http.HandleFunc("/api/task/done", handlerTaskDone)
+	http.HandleFunc("/api/nextdate", authMiddleware(handlerApiNextDate))
+	http.HandleFunc("/api/task", authMiddleware(handlerApiTask))
+	http.HandleFunc("/api/tasks", authMiddleware(handlerApiGetTasks))
+	http.HandleFunc("/api/task/done", authMiddleware(handlerTaskDone))
+	http.HandleFunc("/api/signin", handlerAuth)
 	log.Println("http server started on :" + strconv.Itoa(port))
 	err = http.ListenAndServe(":"+strconv.Itoa(port), nil)
 	if err != nil {
