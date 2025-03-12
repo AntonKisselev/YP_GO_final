@@ -19,7 +19,7 @@ type Task struct {
 	Id      int64  `json:"id,string"`
 }
 
-func (t *Task) Save() error {
+func (t *Task) Validate() error {
 	if t.Title == "" {
 		return errors.New("не указан заголовок")
 	}
@@ -44,6 +44,14 @@ func (t *Task) Save() error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (t *Task) Save() error {
+	err := t.Validate()
+	if err != nil {
+		return err
+	}
 
 	dbSql, err := db.GetDbConnection()
 	if err != nil {
@@ -57,6 +65,32 @@ func (t *Task) Save() error {
 		t.Id, err = res.LastInsertId()
 		if err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (t *Task) Update() error {
+	err := t.Validate()
+	if err != nil {
+		return err
+	}
+
+	dbSql, err := db.GetDbConnection()
+	if err != nil {
+		return err
+	}
+	if t.Id > 0 {
+		res, err := dbSql.Exec("UPDATE scheduler SET title = ?, date = ?, comment = ?, repeat = ? WHERE id = ?", t.Title, t.Date, t.Comment, t.Repeat, t.Id)
+		if err != nil {
+			return err
+		}
+		ra, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if ra == 0 {
+			return errors.New("no rows affected")
 		}
 	}
 	return nil
@@ -254,4 +288,18 @@ func GetAll(search string) ([]Task, error) {
 		tasks = append(tasks, task)
 	}
 	return tasks, nil
+}
+
+func GetById(id int) (Task, error) {
+	dbSql, err := db.GetDbConnection()
+	if err != nil {
+		return Task{}, err
+	}
+	row := dbSql.QueryRow("SELECT id, title, date, comment, repeat FROM scheduler WHERE id = ?", id)
+	task := Task{}
+	err = row.Scan(&task.Id, &task.Title, &task.Date, &task.Comment, &task.Repeat)
+	if err != nil {
+		return Task{}, err
+	}
+	return task, nil
 }

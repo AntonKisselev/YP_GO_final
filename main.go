@@ -96,8 +96,110 @@ func handlerApiTask(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	}
+	if req.Method == "GET" {
+		idS := req.URL.Query().Get("id")
+		if idS == "" {
+			errStr, err := json.Marshal(struct {
+				Error string `json:"error"`
+			}{
+				Error: "Не указан идентификатор id",
+			})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write(errStr)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
+		}
+		id, err := strconv.Atoi(idS)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		task, errGet := task.GetById(id)
+		if errGet != nil {
+			errStr, err := json.Marshal(struct {
+				Error string `json:"error"`
+			}{
+				Error: errGet.Error(),
+			})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write(errStr)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
+		}
+		resStr, err := json.Marshal(task)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write(resStr)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		return
+	}
+	if req.Method == "PUT" {
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		task := task.Task{}
+		err = json.Unmarshal(body, &task)
+		if err != nil {
+			errStr, err := json.Marshal(struct {
+				Error string `json:"error"`
+			}{
+				Error: "Переданы неверные данные",
+			})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write(errStr)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
+		}
+		errSave := task.Update()
+		if errSave != nil {
+			errStr, err := json.Marshal(struct {
+				Error string `json:"error"`
+			}{
+				Error: errSave.Error(),
+			})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write(errStr)
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
+		} else {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("{}"))
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			return
+		}
+	}
 	w.WriteHeader(http.StatusBadRequest)
 	w.Write([]byte("error: invalid method"))
+	return
 }
 func handlerApiGetTasks(w http.ResponseWriter, req *http.Request) {
 	if req.Method == "GET" {
